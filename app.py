@@ -1,46 +1,31 @@
 import streamlit as st
-import os
-import subprocess
+from PIL import Image
+from io import BytesIO
+from fpdf import FPDF
 
-def convert_numbers_to_excel(uploaded_file):
-  """Converts .numbers files to .xlsx files using libreoffice."""
-  try:
-    # Save the uploaded file temporarily
-    with open("temp.numbers", "wb") as f:
-      f.write(uploaded_file.getbuffer())
+st.set_page_config(page_title="JPG a PDF", layout="centered")
 
-    # Use libreoffice to convert the file
-    # Ensure libreoffice is installed and in your system's PATH
-    command = ["libreoffice", "--headless", "--convert-to", "xlsx", "temp.numbers"]
-    subprocess.run(command, check=True, capture_output=True, text=True)
+st.title("🖼️ Convertidor de JPG a PDF")
 
-    # Provide download link for the converted file
-    with open("temp.xlsx", "rb") as f:
+uploaded_files = st.file_uploader(
+    "Sube una o varias imágenes JPG", type=["jpg", "jpeg"], accept_multiple_files=True
+)
+
+if uploaded_files:
+    images = []
+    for uploaded_file in uploaded_files:
+        image = Image.open(uploaded_file).convert("RGB")
+        images.append(image)
+
+    if st.button("Convertir a PDF"):
+        pdf_bytes = BytesIO()
+        images[0].save(pdf_bytes, format="PDF", save_all=True, append_images=images[1:])
+        pdf_bytes.seek(0)
+
+        st.success("✅ Conversión exitosa.")
         st.download_button(
-            label="Descargar archivo Excel",
-            data=f,
-            file_name="converted_file.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            label="📥 Descargar PDF",
+            data=pdf_bytes,
+            file_name="imagenes_convertidas.pdf",
+            mime="application/pdf"
         )
-
-    # Clean up temporary files
-    os.remove("temp.numbers")
-    os.remove("temp.xlsx")
-    
-  except FileNotFoundError:
-    st.error("LibreOffice no se encontró. Asegúrate de que esté instalado y en tu PATH.")
-  except subprocess.CalledProcessError as e:
-    st.error(f"Error al convertir el archivo: {e.stderr}")
-  except Exception as e:
-    st.error(f"Ocurrió un error: {e}")
-
-
-st.title("Conversor de archivos .numbers a Excel")
-
-uploaded_file = st.file_uploader("Sube tu archivo .numbers", type=["numbers"])
-
-if uploaded_file is not None:
-  if uploaded_file.name.endswith(".numbers"):
-    convert_numbers_to_excel(uploaded_file)
-  else:
-    st.error("Por favor, sube un archivo .numbers.")
